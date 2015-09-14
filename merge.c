@@ -2,163 +2,171 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define INFINITO = 999999
+#define MAXINT 9999999999
 
-int regcont = 0, contArquivosEmUso = 0;
+int qntdArqUso = 0;
 
-struct str_reg{
+struct registro{
     int id;
     char desc[55];
-}str_reg;
+}registro;
 
 int main(){
-    mostrar();
+    int tamanhoEntrada,tamanhoSaida;
+    char *nome;
+
+    printf("Digite o nome do arquivo:");
+    gets(nome);
+
+    printf("Digite o valor do buffer de entrada:");
+    scanf("%i",&tamanhoEntrada);
+
+    printf("Digite o valor do buffer de saida:");
+    scanf("%i",&tamanhoSaida);
+
+    merge(tamanhoEntrada,tamanhoSaida,nome);
 }
 
-void mostrar(){
+void merge(int tamanhoBufferEntrada,int tamanhoBufferSaida,char *nome){
     //Declarações
-    int tambuffer = 10,totalRegistros = 0, contsaida = 0,
-        contRegRead = 0,contNomeArq = 0,contCorrida = 0,index = 0;
+    int qntdRegBufferSaida = 0;
+    int regCountBreak = 0;
+    int nomeArqIncr = 0;
+    int regcont = 0;
+    int arr_rrn[2000];
 
-    int arr_rrn[2000],tambufferSaida = 5;
-
-    char *status = "Preenchendo Buffer";
-    struct str_reg buffer[tambuffer];
-    struct str_reg bufferSaida[tambufferSaida];
+    struct registro buffer[tamanhoBufferEntrada];
+    struct registro bufferSaida[tamanhoBufferSaida];
 
     FILE *file,*fileWriteFinal;
 
-    if ((file = fopen("arqdados-100.dat", "r")) == NULL) {
-       printf("Erro na abertura do arquivo --- programa abortado\n");
+    if ((file = fopen(nome, "r")) == NULL) {
+       printf("Tentativa de abrir o arquivo invalida\n");
        exit(1);
     }
-    fseek(file, SEEK_SET, 0);
-    //load(status);
 
-    //fread(&totalRegistros ,1,sizeof(int),file);
+    fseek(file, SEEK_SET, 0);
+
     fread(&regcont,1,sizeof(int),file);
-    //Leitura Escrita Ordenação
-    while(regcont > contRegRead){
-        fread(buffer,tambuffer,sizeof(str_reg),file);
-        contRegRead += tambuffer;
-        quickSort(buffer,0,tambuffer - 1);
+
+    while(regcont > regCountBreak){
+        fread(buffer,tamanhoBufferEntrada,sizeof(registro),file);
+        regCountBreak += tamanhoBufferEntrada;
+        quickSort(buffer,0,tamanhoBufferEntrada - 1);
 
         FILE *fileWrite;
         char nomeCorrida[50];
 
-        sprintf(nomeCorrida, "corrida_%i.txt", contCorrida++);
+        sprintf(nomeCorrida, "corrida_%i.txt", nomeArqIncr++);
 
         if ((fileWrite = fopen(nomeCorrida, "w")) == NULL) {
-           printf("Erro na abertura do arquivo --- programa abortado\n");
+           printf("Tentativa de abrir o arquivo invalida\n");
            exit(1);
         }
+        printf("\n\nCorrida numero %i \n", nomeArqIncr-1);
+        int i;
+        for(i = 0 ;i < tamanhoBufferEntrada;i++){
+            printf("Chave: %i, texto: %s \n",buffer[i].id,buffer[i].desc);
+        }
 
-        fwrite(buffer,tambuffer,sizeof(str_reg),fileWrite);
+        fwrite(buffer,tamanhoBufferEntrada,sizeof(registro),fileWrite);
         fclose(fileWrite);
     }
+    qntdArqUso = nomeArqIncr;
+    printf("Quantidade de corridas geradas %i, reads %i, writes %i",qntdArqUso,qntdArqUso,qntdArqUso);
 
-    contArquivosEmUso = contCorrida;
+    if(tamanhoBufferEntrada < qntdArqUso){
+        printf("\n\n\nNão é possivel executar para essa especificação dos tamanhos dos buffers\n");
+        exit(1);
+    }
 
-     if ((fileWriteFinal = fopen("arquivo_saida.txt", "w")) == NULL) {
-       printf("Erro na abertura do arquivo --- programa abortado\n");
+    if((fileWriteFinal = fopen("arquivo_saida.txt", "w")) == NULL) {
+       printf("Tentativa de abrir o arquivo invalida\n");
        exit(1);
     }
-
     fclose(fileWriteFinal);
 
-    for(index = 0 ;index < contCorrida ; index++){
-        arr_rrn[index] = 0;
-        fromBufToFile(index,arr_rrn,buffer);
+    int i;
+    for(i = 0 ;i < nomeArqIncr ; i++){
+        arr_rrn[i] = 0;
+        fromBufToFile(i,arr_rrn,buffer);
+    }
+
+    while (qntdArqUso > 0 ){
+        fromBufferToOutBuffer(buffer,bufferSaida,arr_rrn,tamanhoBufferEntrada,tamanhoBufferSaida,&qntdRegBufferSaida);
 
     }
 
-    while (contArquivosEmUso > 0 ){
-        fromBufferToOutBuffer(buffer,bufferSaida,arr_rrn,tambuffer,tambufferSaida,&contsaida);
-
-    }
-
-    //Implementação primeira etapa do merging
     fclose(file);
-    FILE *fp;
-    if ((fp = fopen("arquivo_saida.txt", "r")) == NULL) {
-           printf("Erro na abertura do arquivo --- programa abortado\n");
-           exit(1);
-        }
-        int h =0,x = 0;
-        struct str_reg cx;
-        fseek(fp,0,0);
-         h = fread(&cx,1,sizeof(str_reg),fp);
-    while(h!= 0){
-        printf("ARQ ID: %i contador : %i \n" , cx.id , x++) ;
-        h = fread(&cx,1,sizeof(str_reg),fp);
-    }
-
-    fclose(fp);
 }
-int gc = 0;
-void fromBufferToOutBuffer(struct str_reg *buffer, struct str_reg *bufferSaida,int arr_rrn[],int tambuffer,int tambufferSaida,int *contSaida){
-    int indiceI = 0, menorIndice = 0 ;
-    for (indiceI = 0 ; indiceI < tambuffer - 1; indiceI++){
-        if(buffer[menorIndice].id > buffer[indiceI + 1].id ){
-            menorIndice = indiceI  + 1;
+
+int encontraMenor(struct registro *buffer,int length){
+    int i = 0,menor = 0;
+    for (i = 0 ;i< length-1; i++){
+        if(buffer[menor].id > buffer[i+1].id){
+            menor = i+1;
         }
     }
+    return menor;
+}
 
-    bufferSaida[*contSaida] = buffer[menorIndice];
+void fromBufferToOutBuffer(struct registro *buffer, struct registro *bufferSaida,int arr_rrn[],int tambuffer,int tambufferSaida,int *contSaida){
+    int menor = encontraMenor(buffer,tambuffer);
+
+    bufferSaida[*contSaida] = buffer[menor];
     *contSaida += 1;
 
-    fromBufToFile(menorIndice,arr_rrn,buffer);
+    fromBufToFile(menor,arr_rrn,buffer);
 
     if(tambufferSaida == *contSaida){
-
         FILE *fileWriteOutput;
         if ((fileWriteOutput = fopen("arquivo_saida.txt", "r+")) == NULL) {
-           printf("Erro na abertura do arquivo --- programa abortado\n");
+           printf("Tentativa de abrir o arquivo invalida\n");
            exit(1);
         }
         fseek(fileWriteOutput,0,SEEK_END);
 
-        fwrite(bufferSaida,tambufferSaida,sizeof(str_reg),fileWriteOutput);
+        fwrite(bufferSaida,tambufferSaida,sizeof(registro),fileWriteOutput);
         *contSaida = 0;
         fclose(fileWriteOutput);
     }
 }
 
 
-void fromBufToFile(int index, int arr_rrn[],struct str_reg *buffer ){
+void fromBufToFile(int index, int arr_rrn[],struct registro *buffer ){
         FILE *fileRead;
         char nomeCorrida[50];
-        struct str_reg str_aux;
+        struct registro str_aux;
         int retornoQuantidade = -1;
 
         sprintf(nomeCorrida, "corrida_%i.txt", index);
 
         if ((fileRead = fopen(nomeCorrida, "r+")) == NULL) {
-           printf("Erro na abertura do arquivo --- programa abortado\n");
+           printf("Tentativa de abrir o arquivo invalida\n");
            exit(1);
         }
 
-        fseek(fileRead,arr_rrn[index]++ * sizeof(str_reg),SEEK_SET);
+        fseek(fileRead,arr_rrn[index]++ * sizeof(registro),SEEK_SET);
         //Passar o tamanho do buffer no arquivo
-        retornoQuantidade = fread(&str_aux,1,sizeof(str_reg),fileRead);
+        retornoQuantidade = fread(&str_aux,1,sizeof(registro),fileRead);
 
         if(retornoQuantidade == 0 ){
-            buffer[index].id = 999999999;
-            contArquivosEmUso--;
+            buffer[index].id = 9999999999;
+            qntdArqUso--;
         }else{
             buffer[index] = str_aux;
         }
 }
 
 
-void trocaValores(struct str_reg* a, struct str_reg* b){
-    struct str_reg aux;
+void trocaValores(struct registro* a, struct registro* b){
+    struct registro aux;
     aux = *a;
     *a = *b;
     *b = aux;
 }
 
-int divide(struct str_reg vec[], int esquerdo, int direito){
+int divide(struct registro vec[], int esquerdo, int direito){
     int i, j;
 
     i = esquerdo;
@@ -173,7 +181,7 @@ int divide(struct str_reg vec[], int esquerdo, int direito){
     return i;
 }
 
-void quickSort(struct str_reg vec[], int esquerdo, int direito){
+void quickSort(struct registro vec[], int esquerdo, int direito){
     int r;
     if (direito > esquerdo){
         r = divide(vec, esquerdo, direito);
