@@ -7,6 +7,9 @@ struct registro{
     char descricao[55];
 }registro;
 
+
+int countRead = 0, countWrite = 0;
+
 int main(){
     int tamanhoEntrada,tamanhoSaida;
     char nome[300];
@@ -22,6 +25,8 @@ int main(){
 
     merge(tamanhoEntrada,tamanhoSaida,nome);
 }
+
+
 
 void merge(int tamanhoBufferEntrada,int tamanhoBufferSaida,char *nome){
     int qntdRegBufferSaida = 0;
@@ -43,9 +48,9 @@ void merge(int tamanhoBufferEntrada,int tamanhoBufferSaida,char *nome){
     fread(&regcont,1,sizeof(int),file);
     while(regcont > regCountBreak){
         fread(buffer,tamanhoBufferEntrada,sizeof(registro),file);
-        printf("\n\nCorrida numero %i \n", nomeArqIncr-1);
+        printf("\n\nCorrida numero %i \n", nomeArqIncr);
         printf("Buffer sendo preenchido\n");
-        
+
         regCountBreak += tamanhoBufferEntrada;
         quickSort(buffer,0,tamanhoBufferEntrada - 1);
         printf("Buffer sendo ordenado\n");
@@ -92,10 +97,15 @@ void merge(int tamanhoBufferEntrada,int tamanhoBufferSaida,char *nome){
     printf("Numero de registros lidos por vez em cada corrida: 1 \n");
 
     while (qntdArqUso > 0 ){
-        // printf("antes\n");
         escreveNoBufferSaida(buffer,bufferSaida,arrPonteiro,tamanhoBufferEntrada,tamanhoBufferSaida,&qntdRegBufferSaida,ponteiroSaida,&qntdArqUso,nomeArqIncr);
-        // printf("depois\n");
     }
+    if(qntdRegBufferSaida > 0){
+        printf("Buffer de saida esta sendo gravado em disco\n\n");
+        fwrite(bufferSaida,qntdRegBufferSaida,sizeof(registro),ponteiroSaida);
+        countWrite++;
+    }
+    printf("Quantidade de reads: %i \n", countRead);
+    printf("Quantidade de writes: %i", countWrite);
 
     fclose(ponteiroSaida);
     fclose(file);
@@ -116,13 +126,13 @@ void escreveNoBufferSaida(struct registro *buffer, struct registro *bufferSaida,
 
     bufferSaida[*contSaida] = buffer[menor];
     *contSaida += 1;
-    // printf(" antes1\n");
     leProBufferEntrada(menor,arrPonteiro,buffer,qntdArqUso);
     printf("Buffer de saida esta sendo preenchido\n");
     if(tambufferSaida == *contSaida){
         printf("Buffer de saida esta sendo gravado em disco\n\n");
         fwrite(bufferSaida,tambufferSaida,sizeof(registro),ponteiroSaida);
         *contSaida = 0;
+        countWrite++;
     }
 }
 
@@ -132,16 +142,14 @@ void leProBufferEntrada(int indice, FILE* arrRegistros[],struct registro *buffer
         char nomeCorrida[50];
         struct registro str_aux;
         int retornoQuantidade = -1;
-        // printf("tama: %i, indice %i\n",sizeof(registro),indice);
-        // printf("qntd: %i\n",retornoQuantidade);
         retornoQuantidade = fread(&str_aux,1,sizeof(registro),arrRegistros[indice]);
-        // printf("qntd: %i\n",retornoQuantidade);
         if(retornoQuantidade == 0){
-            // printf("\n\n\n %i \n\n\n\n\n", indice);
             fclose(arrRegistros[indice]);
             buffer[indice].id = 9999999999;
             *qntdArqUso -= 1;
+
         }else{
+            countRead++;
             buffer[indice] = str_aux;
         }
 }
