@@ -40,32 +40,27 @@ void merge(int tamanhoBufferEntrada,int tamanhoBufferSaida,char *nome){
        printf("Tentativa de abrir o arquivo invalida\n");
        exit(1);
     }
-
-    fseek(file, SEEK_SET, 0);
-
     fread(&regcont,1,sizeof(int),file);
-
     while(regcont > regCountBreak){
         fread(buffer,tamanhoBufferEntrada,sizeof(registro),file);
+        printf("\n\nCorrida numero %i \n", nomeArqIncr-1);
+        printf("Buffer sendo preenchido\n");
+        
         regCountBreak += tamanhoBufferEntrada;
         quickSort(buffer,0,tamanhoBufferEntrada - 1);
+        printf("Buffer sendo ordenado\n");
 
-        FILE *fileWrite;
+
+        FILE *arqCorrida;
         char nomeCorrida[50];
-
         sprintf(nomeCorrida, "corrida%i.txt", nomeArqIncr++);
-
-        if ((fileWrite = fopen(nomeCorrida, "w")) == NULL) {
+        if ((arqCorrida = fopen(nomeCorrida, "w")) == NULL) {
            printf("Tentativa de abrir o arquivo invalida\n");
            exit(1);
         }
-        printf("\n\nCorrida numero %i \n", nomeArqIncr-1);
-        int i;
-        fwrite(buffer,tamanhoBufferEntrada,sizeof(registro),fileWrite);
-        fclose(fileWrite);
-        for(i = 0 ;i < tamanhoBufferEntrada;i++){
-            printf("Chave: %i, texto: %s \n",buffer[i].id,buffer[i].descricao);
-        }
+        fwrite(buffer,tamanhoBufferEntrada,sizeof(registro),arqCorrida);
+        printf("Buffer sendo gravado em disco\n");
+        fclose(arqCorrida);
     }
 
 
@@ -91,31 +86,19 @@ void merge(int tamanhoBufferEntrada,int tamanhoBufferSaida,char *nome){
            printf("Tentativa de abrir o arquivo invalida\n");
            exit(1);
         }
-        fromBufToFile(i,arrPonteiro,buffer,&qntdArqUso);
+        leProBufferEntrada(i,arrPonteiro,buffer,&qntdArqUso);
     }
+    printf("\n\nNumero de divisões: %i \n", nomeArqIncr);
+    printf("Numero de registros lidos por vez em cada corrida: 1 \n");
 
     while (qntdArqUso > 0 ){
-        fromBufferToOutBuffer(buffer,bufferSaida,arrPonteiro,tamanhoBufferEntrada,tamanhoBufferSaida,&qntdRegBufferSaida,ponteiroSaida,&qntdArqUso);
+        // printf("antes\n");
+        escreveNoBufferSaida(buffer,bufferSaida,arrPonteiro,tamanhoBufferEntrada,tamanhoBufferSaida,&qntdRegBufferSaida,ponteiroSaida,&qntdArqUso,nomeArqIncr);
+        // printf("depois\n");
     }
 
     fclose(ponteiroSaida);
     fclose(file);
-
-    FILE *fp;
-    if ((fp = fopen("arquivo_saida.txt", "r")) == NULL) {
-           printf("Erro na abertura do arquivo --- programa abortado\n");
-           exit(1);
-        }
-        int h =0,x = 0;
-        struct registro cx;
-        fseek(fp,0,0);
-         h = fread(&cx,1,sizeof(registro),fp);
-    while(h!= 0){
-        printf("ARQ ID: %i contador : %i \n" , cx.id , x++) ;
-        h = fread(&cx,1,sizeof(registro),fp);
-    }
-
-    fclose(fp);
 }
 
 int encontraMenor(struct registro *buffer,int length){
@@ -128,35 +111,36 @@ int encontraMenor(struct registro *buffer,int length){
     return menor;
 }
 
-void fromBufferToOutBuffer(struct registro *buffer, struct registro *bufferSaida,FILE* arrPonteiro[],int tambuffer,int tambufferSaida,int *contSaida,FILE *ponteiroSaida, int *qntdArqUso){
-    int menor = encontraMenor(buffer,tambuffer);
+void escreveNoBufferSaida(struct registro *buffer, struct registro *bufferSaida,FILE* arrPonteiro[],int tambuffer,int tambufferSaida,int *contSaida,FILE *ponteiroSaida, int *qntdArqUso,int qntdArq){
+    int menor = encontraMenor(buffer,qntdArq);
 
     bufferSaida[*contSaida] = buffer[menor];
     *contSaida += 1;
-
-    fromBufToFile(menor,arrPonteiro,buffer,qntdArqUso);
-
+    // printf(" antes1\n");
+    leProBufferEntrada(menor,arrPonteiro,buffer,qntdArqUso);
+    printf("Buffer de saida esta sendo preenchido\n");
     if(tambufferSaida == *contSaida){
+        printf("Buffer de saida esta sendo gravado em disco\n\n");
         fwrite(bufferSaida,tambufferSaida,sizeof(registro),ponteiroSaida);
         *contSaida = 0;
     }
 }
 
 
-void fromBufToFile(int indice, FILE* arrRegistros[],struct registro *buffer ,int *qntdArqUso){
+void leProBufferEntrada(int indice, FILE* arrRegistros[],struct registro *buffer ,int *qntdArqUso){
         FILE *fileRead;
         char nomeCorrida[50];
         struct registro str_aux;
         int retornoQuantidade = -1;
-
-
-
+        // printf("tama: %i, indice %i\n",sizeof(registro),indice);
+        // printf("qntd: %i\n",retornoQuantidade);
         retornoQuantidade = fread(&str_aux,1,sizeof(registro),arrRegistros[indice]);
-
-        if(retornoQuantidade == 0 ){
+        // printf("qntd: %i\n",retornoQuantidade);
+        if(retornoQuantidade == 0){
+            // printf("\n\n\n %i \n\n\n\n\n", indice);
             fclose(arrRegistros[indice]);
             buffer[indice].id = 9999999999;
-            *qntdArqUso-=1;
+            *qntdArqUso -= 1;
         }else{
             buffer[indice] = str_aux;
         }
